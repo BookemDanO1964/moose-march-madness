@@ -120,6 +120,17 @@
     font-size: 20px;
     border-top: 2px solid #ffd700;
   }
+  .status-top {
+  font-size: 20px;
+  margin-bottom: 8px;
+  opacity: 0.9;
+}
+
+.live-inline {
+  color: #ff3b3b;
+  font-weight: bold;
+  margin-right: 8px;
+}
 </style>
 </head>
 
@@ -130,8 +141,7 @@
   <!-- HEADER -->
   <div class="header">
     <div class="title">MOOSE LODGE • LIVE SCORES</div>
-    <div class="clock" id="clock"></div>
-  </div>
+      </div>
 
   <!-- GAMES -->
   <div class="games" id="games">Loading...</div>
@@ -153,14 +163,6 @@
 <script>
 const API_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard";
 
-function updateClock() {
-  const now = new Date();
-  document.getElementById("clock").innerText =
-    now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-}
-
-setInterval(updateClock, 1000);
-updateClock();
 
 async function fetchScores() {
   try {
@@ -189,20 +191,21 @@ async function fetchScores() {
       div.className = "game " + (isLive ? "live" : "");
 
       div.innerHTML = `
-       <div class="status">
-  ${isLive ? '<span class="live-inline">● LIVE</span> ' : ''}
-  ${comp.status.type.detail}
-</div>
-        <div class="teams">
-          <span>${t1.team.shortDisplayName}</span>
-          <span class="score">${t1.score}</span>
-        </div>
-        <div class="teams">
-          <span>${t2.team.shortDisplayName}</span>
-          <span class="score">${t2.score}</span>
-        </div>
-        <div class="status">${comp.status.type.detail}</div>
-      `;
+  <div class="status-top">
+    ${isLive ? '<span class="live-inline">● LIVE</span>' : ''}
+    ${comp.status.type.detail}
+  </div>
+
+  <div class="teams">
+    <span>${t1.team.shortDisplayName}</span>
+    <span class="score">${t1.score}</span>
+  </div>
+
+  <div class="teams">
+    <span>${t2.team.shortDisplayName}</span>
+    <span class="score">${t2.score}</span>
+  </div>
+`;
 
       gamesDiv.appendChild(div);
 
