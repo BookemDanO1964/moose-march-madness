@@ -53,10 +53,9 @@ body {
 /* GAME LIST */
 .games {
   display: grid;
-  grid-template-rows: repeat(6, 1fr); /* EXACT number of rows */
+  grid-auto-rows: 1fr;   /* AUTO rows instead of fixed */
   gap: 10px;
   padding: 10px 20px;
-  overflow: hidden;
 }
 
 .game {
