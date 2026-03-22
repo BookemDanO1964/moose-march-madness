@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Broadcast Scoreboard</title>
+<meta name="viewport" content="width=1080, height=1920">
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #0a0c1a;
+  color: white;
+}
+
+.container {
+  width: 1080px;
+  height: 1920px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* HEADER */
+.header {
+  background: #11142b;
+  padding: 18px;
+  font-size: 36px;
+  border-bottom: 3px solid #ffd700;
+  text-align: center;
+}
+
+/* FEATURED GAME */
+.featured {
+  background: linear-gradient(135deg, #1b1f3b, #11142b);
+  padding: 20px;
+  border-bottom: 3px solid #ffd700;
+}
+
+.featured .team {
+  display: flex;
+  justify-content: space-between;
+  font-size: 42px;
+  margin: 10px 0;
+}
+
+.featured .score {
+  font-size: 60px;
+  color: #ffd700;
+}
+
+.featured .status {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+/* GAME LIST */
+.games {
+  flex: 1;
+  padding: 10px 20px;
+}
+
+.game {
+  margin-bottom: 14px;
+  padding: 14px;
+  border-radius: 12px;
+  background: #1a1c3a;
+}
+
+.game.close {
+  border-left: 6px solid orange;
+}
+
+.team-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.team-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  width: 30px;
+}
+
+.leading {
+  color: #ffd700;
+  font-weight: bold;
+}
+
+.arrow {
+  color: #ffd700;
+}
+
+/* FLASH ANIMATION */
+.flash {
+  animation: flash 0.6s;
+}
+
+@keyframes flash {
+  0% { background: #ffd700; }
+  100% { background: transparent; }
+}
+
+/* TICKER */
+.ticker {
+  height: 70px;
+  background: black;
+  overflow: hidden;
+  border-top: 3px solid #ffd700;
+}
+
+.ticker-text {
+  white-space: nowrap;
+  animation: scroll 25s linear infinite;
+  padding-left: 100%;
+}
+
+@keyframes scroll {
+  100% { transform: translateX(-100%); }
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<div class="header">MOOSE LODGE • LIVE BROADCAST</div>
+
+<div class="featured" id="featured"></div>
+
+<div class="games" id="games"></div>
+
+<div class="ticker">
+  <div class="ticker-text" id="ticker"></div>
+</div>
+
+</div>
+
+<script>
+const API = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard";
+
+let lastScores = {};
+
+function buildTeamRow(team, opp) {
+  const win = team.score > opp.score;
+  const possession = team.possession;
+
+  return `
+  <div class="team-row">
+    <div class="team-left">
+      ${possession ? '<span class="arrow">▶</span>' : ''}
+      <img class="logo" src="https://a.espncdn.com/i/teamlogos/ncaa/500/${team.team.id}.png">
+      <span class="${win ? 'leading' : ''}">${team.team.shortDisplayName}</span>
+    </div>
+    <div class="score ${win ? 'leading' : ''}">
+      ${team.score}
+    </div>
+  </div>
+  `;
+}
+
+async function load() {
+  const res = await fetch(API);
+  const data = await res.json();
+
+  const events = data.events;
+
+  // sort live first
+  events.sort((a,b)=>{
+    const order = {in:0, pre:1, post:2};
+    return order[a.status.type.state] - order[b.status.type.state];
+  });
+
+  const featuredGame = events[0];
+  renderFeatured(featuredGame);
+
+  renderGames(events.slice(1,8));
+  buildTicker(events);
+}
+
+function renderFeatured(event) {
+  const comp = event.competitions[0];
+  const t1 = comp.competitors[0];
+  const t2 = comp.competitors[1];
+
+  document.getElementById("featured").innerHTML = `
+    <div class="status">${comp.status.type.detail}</div>
+    <div class="team">${t1.team.shortDisplayName} <span class="score">${t1.score}</span></div>
+    <div class="team">${t2.team.shortDisplayName} <span class="score">${t2.score}</span></div>
+  `;
+}
+
+function renderGames(events) {
+  const container = document.getElementById("games");
+  container.innerHTML = "";
+
+  events.forEach(e=>{
+    const comp = e.competitions[0];
+    const t1 = comp.competitors[0];
+    const t2 = comp.competitors[1];
+
+    const close = Math.abs(t1.score - t2.score) <= 5;
+
+    const id = e.id;
+
+    let flashClass = "";
+    if (lastScores[id] && lastScores[id] !== t1.score + t2.score) {
+      flashClass = "flash";
+    }
+
+    lastScores[id] = t1.score + t2.score;
+
+    const div = document.createElement("div");
+    div.className = "game " + (close ? "close " : "") + flashClass;
+
+    div.innerHTML = `
+      <div class="status">${comp.status.type.detail}</div>
+      ${buildTeamRow(t1,t2)}
+      ${buildTeamRow(t2,t1)}
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+function buildTicker(events) {
+  let text = "🏀 ";
+  events.forEach(e=>{
+    const c = e.competitions[0];
+    const t1 = c.competitors[0];
+    const t2 = c.competitors[1];
+
+    text += `${t1.team.abbreviation} ${t1.score}-${t2.score} ${t2.team.abbreviation} • `;
+  });
+
+  document.getElementById("ticker").innerText = text;
+}
+
+load();
+setInterval(load, 60000);
+</script>
+
+</body>
+</html>
