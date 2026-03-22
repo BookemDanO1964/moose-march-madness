@@ -83,17 +83,7 @@
     opacity: 0.85;
   }
 
-  .live-badge {
-    position: absolute;
-    top: 10px;
-    right: 12px;
-    background: red;
-    padding: 4px 10px;
-    font-size: 16px;
-    border-radius: 6px;
-    font-weight: bold;
-  }
-
+  
   /* BOTTOMLINE TICKER */
   .ticker {
     height: 80px;
@@ -194,7 +184,10 @@ async function fetchScores() {
       div.className = "game " + (isLive ? "live" : "");
 
       div.innerHTML = `
-        ${isLive ? '<div class="live-badge">LIVE</div>' : ''}
+       <div class="status">
+  ${isLive ? '<span class="live-inline">● LIVE</span> ' : ''}
+  ${comp.status.type.detail}
+</div>
         <div class="teams">
           <span>${t1.team.shortDisplayName}</span>
           <span class="score">${t1.score}</span>
