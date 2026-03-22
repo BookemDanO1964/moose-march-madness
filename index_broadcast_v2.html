@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Broadcast Scoreboard</title>
+<title>Moose Lodge March Madness Live</title>
 <meta name="viewport" content="width=1080, height=1920">
 
 <style>
@@ -13,82 +13,100 @@ body {
   color: white;
 }
 
+/* GRID LAYOUT (LOCKED TO SCREEN) */
 .container {
   width: 1080px;
   height: 1920px;
   display: grid;
-  grid-template-rows: 80px 180px 1fr; /* header, featured, games */
+  grid-template-rows: 80px 180px 1fr;
   overflow: hidden;
 }
 
 /* HEADER */
 .header {
-  height: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 32px;
+  background: #11142b;
+  border-bottom: 3px solid #ffd700;
 }
 
 /* FEATURED GAME */
 .featured {
-  height: 180px;
   padding: 10px;
+  background: linear-gradient(135deg, #1b1f3b, #11142b);
+  border-bottom: 3px solid #ffd700;
   overflow: hidden;
 }
 
+.featured .status {
+  font-size: 18px;
+  margin-bottom: 5px;
+}
+
 .featured .team {
+  display: flex;
+  justify-content: space-between;
   font-size: 28px;
 }
 
 .featured .score {
-  font-size: 38px;
+  font-size: 36px;
+  color: #ffd700;
 }
 
-.featured .status {
-  font-size: 24px;
-  margin-bottom: 10px;
-}
-
-/* GAME LIST */
+/* GAME GRID */
 .games {
   display: grid;
-  grid-auto-rows: 1fr;   /* AUTO rows instead of fixed */
-  gap: 10px;
+  grid-auto-rows: 1fr;
+  gap: 8px;
   padding: 10px 20px;
+  overflow: hidden;
 }
 
 .game {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 8px;
-  border-radius: 10px;
   background: #1a1c3a;
+  border-radius: 10px;
+  padding: 8px;
 }
 
-.game.close {
-  border-left: 6px solid orange;
-}
-
+/* TEAM ROW */
 .team-row {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  width: 100%;
-  gap: 10px;
+  align-items: center;
 }
 
 .team-left {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;              /* TAKE AVAILABLE SPACE */
-  min-width: 0;         /* CRITICAL FOR TEXT TRUNCATION */
+  flex: 1;
+  min-width: 0;
+}
+
+.team-name {
+  font-size: 22px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .logo {
-  width: 30px;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.score {
+  font-size: 28px;
+  min-width: 60px;
+  text-align: right;
+  flex-shrink: 0;
 }
 
 .leading {
@@ -98,33 +116,31 @@ body {
 
 .arrow {
   color: #ffd700;
+  font-size: 14px;
 }
 
-/* FLASH ANIMATION */
-.flash {
-  animation: flash 0.6s;
+/* STATUS */
+.status-top {
+  font-size: 16px;
+  margin-bottom: 4px;
 }
 
-@keyframes flash {
-  0% { background: #ffd700; }
-  100% { background: transparent; }
-}
-
-.team-name {
-  font-size: 22px;
-}
-.score {
-  font-size: 28px;
+.live-inline {
+  color: red;
+  font-weight: bold;
 }
 </style>
 </head>
 
 <body>
+
 <div class="container">
 
-<div class="header">MOOSE LODGE • MARCH MADNESS LIVE</div>
+<div class="header">
+  MOOSE LODGE • MARCH MADNESS LIVE
+</div>
 
-<div class="featured" id="featured"></div>
+<div class="featured" id="featured">Loading...</div>
 
 <div class="games" id="games">Loading games...</div>
 
@@ -133,48 +149,34 @@ body {
 <script>
 const API = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard";
 
-let lastScores = {};
+/* BUILD TEAM ROW */
+function buildTeamRow(team, opponent) {
+  const score1 = parseInt(team.score || 0);
+  const score2 = parseInt(opponent.score || 0);
 
-function buildTeamRow(team, opp) {
-  const win = team.score > opp.score;
-  const possession = team.possession;
+  const isWinning = score1 > score2;
+  const hasPossession = team.possession === true;
 
   return `
-  <div class="team-row">
-    <div class="team-left">
-      ${possession ? '<span class="arrow">▶</span>' : ''}
-      <img class="logo" src="https://a.espncdn.com/i/teamlogos/ncaa/500/${team.team.id}.png">
-      <span class="${win ? 'leading' : ''}">${team.team.shortDisplayName}</span>
+    <div class="team-row">
+      <div class="team-left">
+        ${hasPossession ? '<span class="arrow">▶</span>' : ''}
+        <img class="logo" src="https://a.espncdn.com/i/teamlogos/ncaa/500/${team.team.id}.png">
+        <span class="team-name ${isWinning ? 'leading' : ''}">
+          ${team.team.shortDisplayName}
+        </span>
+      </div>
+      <div class="score ${isWinning ? 'leading' : ''}">
+        ${team.score}
+      </div>
     </div>
-    <div class="score ${win ? 'leading' : ''}">
-      ${team.score}
-    </div>
-  </div>
   `;
 }
 
-async function load() {
-  const res = await fetch(API);
-  const data = await res.json();
-
-  const events = data.events;
-
-  // sort live first
-  events.sort((a,b)=>{
-    const order = {in:0, pre:1, post:2};
-    return order[a.status.type.state] - order[b.status.type.state];
-  });
-
-  const featuredGame = events[0];
-  renderFeatured(featuredGame);
-
-  renderGames(events.slice(1,8));
-  buildTicker(events);
-}
-
-// function renderFeatured(event) {
+/* FEATURED GAME */
+function renderFeatured(event) {
   if (!event || !event.competitions) {
-    document.getElementById("featured").innerHTML = "";
+    document.getElementById("featured").innerHTML = "No featured game";
     return;
   }
 
@@ -183,55 +185,76 @@ async function load() {
   const t2 = comp.competitors[1];
 
   document.getElementById("featured").innerHTML = `
-    <div class="status-top">
+    <div class="status">
       ${comp.status.type.detail}
     </div>
-
-    <div class="team-row">
-      <span>${t1.team.shortDisplayName}</span>
+    <div class="team">
+      ${t1.team.shortDisplayName}
       <span class="score">${t1.score}</span>
     </div>
-
-    <div class="team-row">
-      <span>${t2.team.shortDisplayName}</span>
+    <div class="team">
+      ${t2.team.shortDisplayName}
       <span class="score">${t2.score}</span>
     </div>
   `;
 }
 
-function renderGames(events.slice(1,7)); {
+/* GAME LIST */
+function renderGames(events) {
   const container = document.getElementById("games");
   container.innerHTML = "";
 
-  events.forEach(e=>{
+  events.forEach(e => {
     const comp = e.competitions[0];
     const t1 = comp.competitors[0];
     const t2 = comp.competitors[1];
 
-    const close = Math.abs(t1.score - t2.score) <= 5;
-
-    const id = e.id;
-
-    let flashClass = "";
-    if (lastScores[id] && lastScores[id] !== t1.score + t2.score) {
-      flashClass = "flash";
-    }
-
-    lastScores[id] = t1.score + t2.score;
+    const isLive = comp.status.type.state === "in";
 
     const div = document.createElement("div");
-    div.className = "game " + (close ? "close " : "") + flashClass;
+    div.className = "game";
 
     div.innerHTML = `
-      <div class="status">${comp.status.type.detail}</div>
-      ${buildTeamRow(t1,t2)}
-      ${buildTeamRow(t2,t1)}
+      <div class="status-top">
+        ${isLive ? '<span class="live-inline">● LIVE</span>' : ''}
+        ${comp.status.type.detail}
+      </div>
+      ${buildTeamRow(t1, t2)}
+      ${buildTeamRow(t2, t1)}
     `;
 
     container.appendChild(div);
   });
 }
 
+/* LOAD DATA */
+async function load() {
+  try {
+    const res = await fetch(API);
+    const data = await res.json();
+
+    if (!data.events) {
+      document.getElementById("games").innerHTML = "No data";
+      return;
+    }
+
+    const events = data.events;
+
+    /* SORT LIVE FIRST */
+    events.sort((a,b)=>{
+      const order = {in:0, pre:1, post:2};
+      return order[a.status.type.state] - order[b.status.type.state];
+    });
+
+    renderFeatured(events[0]);
+
+    const games = events.slice(1,7);
+    renderGames(games);
+
+  } catch (e) {
+    document.getElementById("games").innerHTML = "Error loading scores";
+  }
+}
 
 load();
 setInterval(load, 60000);
